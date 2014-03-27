@@ -27,6 +27,12 @@ try:
 except ImportError:
     use_pymysql = False
 
+use_sqlalchemy_raw = True 
+try:  
+    import sqlalchemy
+except ImportError:
+    use_sqlalchemy_raw = False
+
 
 print "##  Compare python mysql drivers, don't forget to run it twice in order to warmup your db"
 print "* Python version: {} ".format(sys.version)
@@ -44,11 +50,36 @@ if use_oursql:
 if use_pymysql:
     print "* pymysql version: {} url:{}".format(pymysql.__version__, "https://github.com/petehunt/PyMySQL")
 
+if use_sqlalchemy_raw:
+    print "* sqlalchemy version: {} url:{}".format(sqlalchemy.__version__, "http://www.sqlalchemy.org")
+
 
     
 def conn(lib):
-        return lib.connect(host="localhost", user="root", passwd="", db="employees")
- 
+        return lib.connect(host="localhost", user="root", passwd="minad", db="employees")
+
+def conn_sqlalchemy():
+        class AWrapper():
+            def __init__(self, url):
+                self.engine = sqlalchemy.create_engine(url)
+                self.last_result = None
+            def cursor(self):
+                return self
+            def execute(self, *args, **kw):
+                self.last_result = self.engine.execute(*args, **kw)
+            def fetchone(self):
+                return self.last_result.fetchone()
+            def fetchall(self):
+                return self.last_result.fetchall()
+            def close(self):
+                if self.last_result:
+                    self.last_result.close()
+            @property
+            def rowcount(self):
+                return self.last_result.rowcount
+
+        return AWrapper("mysql+mysqldb://root:minad@localhost/employees")
+
 def simpleSelect(steps, conn, formater='%s'):
         q = "Select SQL_NO_CACHE  * from employees where emp_no = {}".format(formater)
         start = time()
@@ -140,6 +171,8 @@ if use_mysql_connector:
     print "* ", simpleSelect(steps, conn(mysql.connector)), 'mysql.connector'
 if use_pymysql:
     print "* ", simpleSelect(steps, conn(pymysql)), 'pymysql'
+if use_sqlalchemy_raw:
+    print "* ", simpleSelect(steps, conn_sqlalchemy()), 'sqlalchemy raw'
 print "##  Select 500 rows {}x".format(steps/10)
 if use_mysqldb:
     print "* ", select500(steps, conn(MySQLdb)), 'MySQLdb'
@@ -149,6 +182,8 @@ if use_mysql_connector:
     print "* ", select500(steps, conn(mysql.connector)), 'mysql.connector'
 if use_pymysql:
     print "* ", select500(steps, conn(pymysql)), 'pymysql'
+if use_sqlalchemy_raw:
+    print "* ", select500(steps, conn_sqlalchemy()), 'sqlalchemy raw'
 print "##  Select 500 rows with 500 args {}x".format(steps/10)
 if use_mysqldb:
     print "* ", select500with500Args(steps, conn(MySQLdb)), 'MySQLdb'
@@ -158,6 +193,8 @@ if use_mysql_connector:
     print "* ", select500with500Args(steps, conn(mysql.connector)), 'mysql.connector'
 if use_pymysql:
     print "* ", select500with500Args(steps, conn(pymysql)), 'pymysql'
+if use_sqlalchemy_raw:
+    print "* ", select500with500Args(steps, conn_sqlalchemy()), 'sqlalchemy raw'
 print "##  Select 300k id  {}x".format(steps/2000)
 if use_mysqldb:
     print "* ", select300kID(steps, conn(MySQLdb)), 'MySQLdb'
@@ -167,6 +204,8 @@ if use_mysql_connector:
     print "* ", select300kID(steps, conn(mysql.connector)), 'mysql.connector'
 if use_pymysql:
     print "* ", select300kID(steps, conn(pymysql)), 'pymysql'
+if use_sqlalchemy_raw:
+    print "* ", select300kID(steps, conn_sqlalchemy()), 'sqlalchemy raw'
 print "##  Simple Select 1M3 id  {}x".format(steps/10000)
 if use_mysqldb:
     print "* ", select1M(steps, conn(MySQLdb)), 'MySQLdb'
@@ -176,3 +215,5 @@ if use_mysql_connector:
     print "* ", select1M(steps, conn(mysql.connector)), 'mysql.connector'
 if use_pymysql:
     print "* ", select1M(steps, conn(pymysql)), 'pymysql'
+if use_sqlalchemy_raw:
+    print "* ", select1M(steps, conn_sqlalchemy()), 'sqlalchemy raw'
